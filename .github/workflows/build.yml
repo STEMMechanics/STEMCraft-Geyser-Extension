@@ -34,7 +34,7 @@ jobs:
         run: ./gradlew --no-daemon clean build
 
       - name: Upload extension JAR
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: stemcraft-geyser-extension
           path: build/libs/stemcraft-geyser-extension-*.jar
