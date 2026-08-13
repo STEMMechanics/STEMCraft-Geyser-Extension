@@ -8,7 +8,7 @@ rotation:
 offset:
   x: 0.25
   y: 0.575
-  z: 0.25
+  z: 0.75
 
 # Bedrock held-item pivot compensation, multiplied by (1 - display scale)
 # independently on each axis. Full-scale displays receive no correction.
