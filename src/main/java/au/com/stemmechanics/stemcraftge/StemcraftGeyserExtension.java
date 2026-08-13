@@ -56,6 +56,7 @@ public final class StemcraftGeyserExtension implements Extension {
     private float pivotZ;
     private Map<String, Float> blockScaleOverrides = new LinkedHashMap<>();
     private Map<String, Vector3f> blockOffsetOverrides = new LinkedHashMap<>();
+    private List<String> blockOverrideOrder = new java.util.ArrayList<>();
     private long packRevision;
     private UUID packUuid;
     private UUID moduleUuid;
@@ -172,7 +173,11 @@ public final class StemcraftGeyserExtension implements Extension {
                     }
                 }
             }
-            readYamlConfig(configPath);
+            boolean migratedPatterns = readYamlConfig(configPath);
+            if (migratedPatterns) {
+                saveConfig();
+                logger().info("Updated config.yml to use wildcard chest and wall overrides.");
+            }
             CRC32 checksum = new CRC32();
             String calibration = heldItemScale + ":" + rotationX + ":" + rotationY + ":"
                     + rotationZ + ":" + offsetX + ":" + offsetY + ":" + offsetZ + ":"
@@ -261,12 +266,13 @@ public final class StemcraftGeyserExtension implements Extension {
             rotationZ = 0f;
             offsetX = 0.25f;
             offsetY = 0.575f;
-            offsetZ = 0.25f;
+            offsetZ = 0.75f;
             pivotX = -0.25f;
             pivotY = -0.525f;
             pivotZ = -0.775f;
             blockScaleOverrides = defaultBlockScaleOverrides();
             blockOffsetOverrides = defaultBlockOffsetOverrides();
+            blockOverrideOrder = defaultBlockOverrideOrder();
             applyCalibration();
             source.sendMessage("Reset live values (not saved). " + status());
             return;
@@ -307,6 +313,7 @@ public final class StemcraftGeyserExtension implements Extension {
         if (action.equals("clear")) {
             blockScaleOverrides.remove(identifier);
             blockOffsetOverrides.remove(identifier);
+            blockOverrideOrder.remove(identifier);
             applyCalibration();
             source.sendMessage("Cleared live override (not saved). " + blockStatus(identifier));
             return;
@@ -321,6 +328,7 @@ public final class StemcraftGeyserExtension implements Extension {
             boolean add = action.equals("add");
             String field = args[3].toLowerCase(java.util.Locale.ROOT);
             if (field.equals("scale")) {
+                if (!blockOverrideOrder.contains(identifier)) blockOverrideOrder.add(identifier);
                 float current = blockScaleOverrides.getOrDefault(identifier, 1f);
                 float updated = round3(add ? current + value : value);
                 if (updated <= 0 || updated > 16) {
@@ -328,6 +336,7 @@ public final class StemcraftGeyserExtension implements Extension {
                 }
                 blockScaleOverrides.put(identifier, updated);
             } else if (field.equals("x") || field.equals("y") || field.equals("z")) {
+                if (!blockOverrideOrder.contains(identifier)) blockOverrideOrder.add(identifier);
                 Vector3f current = blockOffsetOverrides.getOrDefault(identifier, Vector3f.ZERO);
                 float x = current.getX(), y = current.getY(), z = current.getZ();
                 switch (field) {
@@ -382,7 +391,7 @@ public final class StemcraftGeyserExtension implements Extension {
     private void applyCalibration() {
         CustomBlockDisplayEntity.applyCalibration(heldItemScale, rotationX, rotationY, rotationZ,
                 offsetX, offsetY, offsetZ, pivotX, pivotY, pivotZ,
-                blockScaleOverrides, blockOffsetOverrides);
+                blockScaleOverrides, blockOffsetOverrides, blockOverrideOrder);
     }
 
     private String status() {
@@ -399,7 +408,8 @@ public final class StemcraftGeyserExtension implements Extension {
         root.put("offset", axisMap(offsetX, offsetY, offsetZ));
         root.put("scale-pivot-correction", axisMap(pivotX, pivotY, pivotZ));
         Map<String, Object> overrides = new LinkedHashMap<>();
-        java.util.LinkedHashSet<String> identifiers = new java.util.LinkedHashSet<>(blockScaleOverrides.keySet());
+        java.util.LinkedHashSet<String> identifiers = new java.util.LinkedHashSet<>(blockOverrideOrder);
+        identifiers.addAll(blockScaleOverrides.keySet());
         identifiers.addAll(blockOffsetOverrides.keySet());
         for (String identifier : identifiers) {
             Map<String, Object> values = new LinkedHashMap<>();
@@ -426,14 +436,18 @@ public final class StemcraftGeyserExtension implements Extension {
 
     private synchronized void reloadConfig() throws IOException {
         Path configPath = dataFolder().resolve("config.yml");
-        readYamlConfig(configPath);
+        boolean migratedPatterns = readYamlConfig(configPath);
+        if (migratedPatterns) {
+            saveConfig();
+            logger().info("Updated config.yml to use wildcard chest and wall overrides.");
+        }
         applyCalibration();
         logger().info("Reloaded calibration from %s: %s"
                 .formatted(configPath.toAbsolutePath(), status()));
     }
 
     @SuppressWarnings("unchecked")
-    private void readYamlConfig(Path path) throws IOException {
+    private boolean readYamlConfig(Path path) throws IOException {
         Map<String, Object> root;
         try (InputStream input = Files.newInputStream(path)) {
             Object loaded = new Yaml().load(input);
@@ -447,16 +461,24 @@ public final class StemcraftGeyserExtension implements Extension {
         Map<String, Object> offset = childMap(root.get("offset"));
         offsetX = yamlNumber(offset.get("x"), "offset.x", 0.25f);
         offsetY = yamlNumber(offset.get("y"), "offset.y", 0.575f);
-        offsetZ = yamlNumber(offset.get("z"), "offset.z", 0.25f);
+        offsetZ = yamlNumber(offset.get("z"), "offset.z", 0.75f);
         Map<String, Object> pivot = childMap(root.get("scale-pivot-correction"));
         pivotX = yamlNumber(pivot.get("x"), "scale-pivot-correction.x", -0.25f);
         pivotY = yamlNumber(pivot.get("y"), "scale-pivot-correction.y", -0.525f);
         pivotZ = yamlNumber(pivot.get("z"), "scale-pivot-correction.z", -0.775f);
         blockScaleOverrides = new LinkedHashMap<>();
         blockOffsetOverrides = new LinkedHashMap<>();
+        blockOverrideOrder = new java.util.ArrayList<>();
+        boolean unifiedPresent = root.containsKey("block-overrides");
         Map<String, Object> unified = childMap(root.get("block-overrides"));
-        if (!unified.isEmpty() || root.containsKey("block-overrides")) {
+        OverrideMigration migration = unifiedPresent
+                ? migrateOverridePatterns(unified, unified.isEmpty())
+                : new OverrideMigration(unified, false);
+        unified = migration.overrides();
+        if (unifiedPresent) {
             for (Map.Entry<String, Object> entry : unified.entrySet()) {
+                validateOverridePattern(entry.getKey());
+                blockOverrideOrder.add(entry.getKey());
                 Map<String, Object> values = childMap(entry.getValue());
                 String prefix = "block-overrides." + entry.getKey();
                 if (values.containsKey("scale")) blockScaleOverrides.put(entry.getKey(),
@@ -470,10 +492,12 @@ public final class StemcraftGeyserExtension implements Extension {
             }
         } else {
             for (Map.Entry<String, Object> entry : childMap(root.get("block-scale-overrides")).entrySet()) {
+                if (!blockOverrideOrder.contains(entry.getKey())) blockOverrideOrder.add(entry.getKey());
                 blockScaleOverrides.put(entry.getKey(), yamlPositive(entry.getValue(),
                         "block-scale-overrides." + entry.getKey(), 1f));
             }
             for (Map.Entry<String, Object> entry : childMap(root.get("block-offset-overrides")).entrySet()) {
+            if (!blockOverrideOrder.contains(entry.getKey())) blockOverrideOrder.add(entry.getKey());
             Map<String, Object> axes = childMap(entry.getValue());
             String prefix = "block-offset-overrides." + entry.getKey();
             blockOffsetOverrides.put(entry.getKey(), Vector3f.from(
@@ -482,6 +506,89 @@ public final class StemcraftGeyserExtension implements Extension {
                     yamlNumber(axes.get("z"), prefix + ".z", 0f)));
             }
         }
+        return migration.changed();
+    }
+
+    /**
+     * Converts the known legacy chest and cobblestone-wall entries to wildcard entries.
+     * Differing chest profiles remain exact so no custom calibration is discarded.
+     */
+    private OverrideMigration migrateOverridePatterns(Map<String, Object> source, boolean useDefaults) {
+        LinkedHashMap<String, Object> overrides = new LinkedHashMap<>(source);
+        boolean changed = false;
+
+        String chest = "minecraft:chest";
+        String trappedChest = "minecraft:trapped_chest";
+        String enderChest = "minecraft:ender_chest";
+        String chestPattern = "minecraft:*chest";
+        Object chestValues = overrides.get(chest);
+        boolean identicalChests = chestValues != null
+                && java.util.Objects.equals(chestValues, overrides.get(trappedChest))
+                && java.util.Objects.equals(chestValues, overrides.get(enderChest));
+        if (!overrides.containsKey(chestPattern) && identicalChests) {
+            overrides = replaceOverrideKeys(overrides,
+                    java.util.Set.of(chest, trappedChest, enderChest), chestPattern, chestValues);
+            changed = true;
+        } else if (!overrides.containsKey(chestPattern) && useDefaults) {
+            overrides.put(chestPattern, defaultChestOverride());
+            changed = true;
+        }
+
+        String wall = "minecraft:cobblestone_wall";
+        String wallPattern = "minecraft:*_wall";
+        if (!overrides.containsKey(wallPattern) && overrides.containsKey(wall)) {
+            overrides = replaceOverrideKeys(overrides, java.util.Set.of(wall), wallPattern,
+                    overrides.get(wall));
+            changed = true;
+        } else if (!overrides.containsKey(wallPattern)) {
+            overrides.put(wallPattern, defaultWallOverride());
+            changed = true;
+        }
+        return new OverrideMigration(overrides, changed);
+    }
+
+    /** Replaces one or more keys while retaining the first replaced key's YAML position. */
+    private LinkedHashMap<String, Object> replaceOverrideKeys(Map<String, Object> source,
+                                                               java.util.Set<String> replaced,
+                                                               String replacement,
+                                                               Object values) {
+        LinkedHashMap<String, Object> result = new LinkedHashMap<>();
+        boolean inserted = false;
+        for (Map.Entry<String, Object> entry : source.entrySet()) {
+            if (replaced.contains(entry.getKey())) {
+                if (!inserted) {
+                    result.put(replacement, values);
+                    inserted = true;
+                }
+            } else {
+                result.put(entry.getKey(), entry.getValue());
+            }
+        }
+        if (!inserted) result.put(replacement, values);
+        return result;
+    }
+
+    /** Returns the configured default values for the chest wildcard. */
+    private Map<String, Object> defaultChestOverride() {
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("scale", 2.6f);
+        values.put("x", -0.4f);
+        values.put("y", 0.1f);
+        values.put("z", 0.9f);
+        return values;
+    }
+
+    /** Returns the configured default values for the wall wildcard. */
+    private Map<String, Object> defaultWallOverride() {
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("x", -0.5f);
+        values.put("y", -0.5f);
+        values.put("z", 0f);
+        return values;
+    }
+
+    /** Result of migrating legacy exact overrides to wildcard entries. */
+    private record OverrideMigration(Map<String, Object> overrides, boolean changed) {
     }
 
     private void importLegacyConfig(Path legacyPath) throws IOException {
@@ -495,12 +602,16 @@ public final class StemcraftGeyserExtension implements Extension {
         rotationZ = number(properties, "rotation-z", 0f);
         offsetX = number(properties, "offset-x", 0.25f);
         offsetY = number(properties, "offset-y", 0.575f);
-        offsetZ = number(properties, "offset-z", 0.25f);
+        offsetZ = number(properties, "offset-z", 0.75f);
         pivotX = -0.25f;
         pivotY = -0.525f;
         pivotZ = -0.775f;
         blockScaleOverrides = readBlockScaleOverrides(properties);
         blockOffsetOverrides = defaultBlockOffsetOverrides();
+        blockOverrideOrder = new java.util.ArrayList<>(blockScaleOverrides.keySet());
+        blockOffsetOverrides.keySet().forEach(key -> {
+            if (!blockOverrideOrder.contains(key)) blockOverrideOrder.add(key);
+        });
         saveConfig();
         logger().info("Imported legacy config.properties into config.yml");
     }
@@ -509,6 +620,13 @@ public final class StemcraftGeyserExtension implements Extension {
         Map<String, Object> axes = new LinkedHashMap<>();
         axes.put("x", round3(x)); axes.put("y", round3(y)); axes.put("z", round3(z));
         return axes;
+    }
+
+    /** Validates an exact block identifier or an identifier containing {@code *} wildcards. */
+    private void validateOverridePattern(String pattern) {
+        if (!pattern.matches("[a-z0-9_.-]+:[a-z0-9_./*-]+")) {
+            throw new IllegalArgumentException("Invalid block override pattern: " + pattern);
+        }
     }
 
     private float round3(float value) {
@@ -559,19 +677,21 @@ public final class StemcraftGeyserExtension implements Extension {
 
     private Map<String, Float> defaultBlockScaleOverrides() {
         Map<String, Float> defaults = new LinkedHashMap<>();
-        defaults.put("minecraft:chest", 2.6f);
-        defaults.put("minecraft:trapped_chest", 2.6f);
-        defaults.put("minecraft:ender_chest", 2.6f);
+        defaults.put("minecraft:*chest", 2.6f);
         return defaults;
     }
 
     private Map<String, Vector3f> defaultBlockOffsetOverrides() {
         Map<String, Vector3f> defaults = new LinkedHashMap<>();
         Vector3f chest = Vector3f.from(-0.4f, 0.1f, 0.9f);
-        defaults.put("minecraft:chest", chest);
-        defaults.put("minecraft:trapped_chest", chest);
-        defaults.put("minecraft:ender_chest", chest);
+        defaults.put("minecraft:*chest", chest);
+        defaults.put("minecraft:*_wall", Vector3f.from(-0.5f, -0.5f, 0f));
         return defaults;
+    }
+
+    /** Returns default override keys in deterministic matching order. */
+    private List<String> defaultBlockOverrideOrder() {
+        return new java.util.ArrayList<>(List.of("minecraft:*chest", "minecraft:*_wall"));
     }
 
     private float positive(Properties properties, String key, float fallback) {

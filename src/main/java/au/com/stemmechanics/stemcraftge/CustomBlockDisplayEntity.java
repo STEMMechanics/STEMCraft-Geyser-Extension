@@ -43,6 +43,7 @@ public final class CustomBlockDisplayEntity extends LivingEntity {
     private static Vector3f scalePivotCorrection = Vector3f.ZERO;
     private static Map<String, Float> blockScaleOverrides = Map.of();
     private static Map<String, Vector3f> blockOffsetOverrides = Map.of();
+    private static List<String> blockOverrideOrder = List.of();
     static GeyserFloatEntityProperty LEFT_X;
     static GeyserFloatEntityProperty LEFT_Y;
     static GeyserFloatEntityProperty LEFT_Z;
@@ -79,13 +80,15 @@ public final class CustomBlockDisplayEntity extends LivingEntity {
                                         float offsetX, float offsetY, float offsetZ,
                                         float pivotX, float pivotY, float pivotZ,
                                         Map<String, Float> scaleOverrides,
-                                        Map<String, Vector3f> offsetOverrides) {
+                                        Map<String, Vector3f> offsetOverrides,
+                                        List<String> overrideOrder) {
         baseScale = scale;
         calibrationRotation = Vector3f.from(rotationX, rotationY, rotationZ);
         bedrockOffset = Vector3f.from(offsetX, offsetY, offsetZ);
         scalePivotCorrection = Vector3f.from(pivotX, pivotY, pivotZ);
-        blockScaleOverrides = Map.copyOf(scaleOverrides);
-        blockOffsetOverrides = Map.copyOf(offsetOverrides);
+        blockScaleOverrides = Collections.unmodifiableMap(new java.util.LinkedHashMap<>(scaleOverrides));
+        blockOffsetOverrides = Collections.unmodifiableMap(new java.util.LinkedHashMap<>(offsetOverrides));
+        blockOverrideOrder = List.copyOf(overrideOrder);
         synchronized (LIVE) {
             for (CustomBlockDisplayEntity entity : LIVE) {
                 entity.toggleCalibrationSync();
@@ -108,8 +111,10 @@ public final class CustomBlockDisplayEntity extends LivingEntity {
         }
         List<String> lines = new ArrayList<>();
         counts.forEach((identifier, count) -> {
-            float multiplier = blockScaleOverrides.getOrDefault(identifier, 1f);
-            lines.add(identifier + " x" + count + " multiplier=" + multiplier
+            String matched = matchingOverride(identifier);
+            float multiplier = matched == null ? 1f : blockScaleOverrides.getOrDefault(matched, 1f);
+            lines.add(identifier + " x" + count + " override=" + (matched == null ? "none" : matched)
+                    + " multiplier=" + multiplier
                     + " effective-scale=" + (baseScale * multiplier));
         });
         if (lines.isEmpty()) lines.add("No live block displays found.");
@@ -207,12 +212,15 @@ public final class CustomBlockDisplayEntity extends LivingEntity {
 
     @Override
     public Vector3f bedrockPosition() {
+        String matched = matchingOverride(blockIdentifier);
+        Vector3f blockOffset = matched == null
+                ? Vector3f.ZERO : blockOffsetOverrides.getOrDefault(matched, Vector3f.ZERO);
         return super.bedrockPosition().add(translation).add(bedrockOffset)
                 .add(Vector3f.from(
                         (1f - displayScale.getX()) * scalePivotCorrection.getX(),
                         (1f - displayScale.getY()) * scalePivotCorrection.getY(),
                         (1f - displayScale.getZ()) * scalePivotCorrection.getZ()))
-                .add(blockOffsetOverrides.getOrDefault(blockIdentifier, Vector3f.ZERO));
+                .add(blockOffset);
     }
 
     @Override
@@ -288,8 +296,14 @@ public final class CustomBlockDisplayEntity extends LivingEntity {
             update.update(CAL_Y, calibrationRotation.getY() - DEFAULT_ROTATION_Y);
             update.update(CAL_Z, calibrationRotation.getZ() - DEFAULT_ROTATION_Z);
             update.update(SYNC_REVISION, syncRevision);
-            update.update(BLOCK_SCALE, blockScaleOverrides.getOrDefault(blockIdentifier, 1f));
+            String matched = matchingOverride(blockIdentifier);
+            update.update(BLOCK_SCALE, matched == null ? 1f : blockScaleOverrides.getOrDefault(matched, 1f));
         }, immediate && isValid());
+    }
+
+    /** Resolves an exact override first, then the first matching wildcard in YAML order. */
+    private static String matchingOverride(String identifier) {
+        return BlockOverrideMatcher.match(identifier, blockOverrideOrder);
     }
 
     private static float clamp(float value, float min, float max) {
