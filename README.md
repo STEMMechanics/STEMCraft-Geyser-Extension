@@ -63,27 +63,26 @@ scale-pivot-correction:
   z: -0.775
 
 block-overrides:
-  minecraft:chest:
+  minecraft:*chest:
     scale: 2.6
     x: -0.4
     y: 0.1
     z: 0.9
-  minecraft:trapped_chest:
-    scale: 2.6
-    x: -0.4
-    y: 0.1
-    z: 0.9
-  minecraft:ender_chest:
-    scale: 2.6
-    x: -0.4
-    y: 0.1
-    z: 0.9
+  minecraft:*_wall:
+    x: -0.5
+    y: -0.5
+    z: 0.0
 ```
 
 Missing per-block values default to scale `1.0` and offset `0.0`. Scale-pivot
 correction is applied per axis using `(1 - display scale) × correction`, so a
 full-scale display is unchanged. Calibration values are rounded to three decimal
 places when adjusted or saved.
+
+Block override keys may contain `*` wildcards. Exact identifiers always win;
+otherwise the first matching wildcard in YAML order is used as the complete
+override. Use `minecraft:*chest` to include the plain `minecraft:chest` as well
+as trapped and ender chests—`minecraft:*_chest` does not match the plain chest.
 
 ## Commands
 
