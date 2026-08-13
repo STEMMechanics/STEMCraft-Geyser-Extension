@@ -4,12 +4,18 @@ All notable changes to this project are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/).
 
-## Unreleased
+## [1.1.0] - 2026-08-13
 
 ### Added
 
 - Configurable Bedrock scale-pivot correction for non-unit block-display scales.
 - Live `px`, `py`, and `pz` calibration with save, reload, reset, and startup support.
+- Wildcard block overrides with exact-match precedence and deterministic YAML-order fallback.
+- Automatic migration of matching chest and cobblestone-wall entries to wildcard configuration.
+
+### Changed
+
+- Set the default global Z offset to `0.75`.
 
 ## [1.0.0] - 2026-08-13
 
