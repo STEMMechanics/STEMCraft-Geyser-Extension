@@ -83,6 +83,10 @@ Block override keys may contain `*` wildcards. Exact identifiers always win;
 otherwise the first matching wildcard in YAML order is used as the complete
 override. Use `minecraft:*chest` to include the plain `minecraft:chest` as well
 as trapped and ender chests—`minecraft:*_chest` does not match the plain chest.
+On startup or reload, three identical legacy chest entries are consolidated into
+`minecraft:*chest`, and `minecraft:cobblestone_wall` is migrated to
+`minecraft:*_wall`. The updated configuration is written back automatically;
+differing chest profiles are preserved as exact entries.
 
 ## Commands
 
