@@ -173,7 +173,11 @@ public final class StemcraftGeyserExtension implements Extension {
                     }
                 }
             }
-            readYamlConfig(configPath);
+            boolean migratedPatterns = readYamlConfig(configPath);
+            if (migratedPatterns) {
+                saveConfig();
+                logger().info("Updated config.yml to use wildcard chest and wall overrides.");
+            }
             CRC32 checksum = new CRC32();
             String calibration = heldItemScale + ":" + rotationX + ":" + rotationY + ":"
                     + rotationZ + ":" + offsetX + ":" + offsetY + ":" + offsetZ + ":"
@@ -432,14 +436,18 @@ public final class StemcraftGeyserExtension implements Extension {
 
     private synchronized void reloadConfig() throws IOException {
         Path configPath = dataFolder().resolve("config.yml");
-        readYamlConfig(configPath);
+        boolean migratedPatterns = readYamlConfig(configPath);
+        if (migratedPatterns) {
+            saveConfig();
+            logger().info("Updated config.yml to use wildcard chest and wall overrides.");
+        }
         applyCalibration();
         logger().info("Reloaded calibration from %s: %s"
                 .formatted(configPath.toAbsolutePath(), status()));
     }
 
     @SuppressWarnings("unchecked")
-    private void readYamlConfig(Path path) throws IOException {
+    private boolean readYamlConfig(Path path) throws IOException {
         Map<String, Object> root;
         try (InputStream input = Files.newInputStream(path)) {
             Object loaded = new Yaml().load(input);
@@ -461,8 +469,13 @@ public final class StemcraftGeyserExtension implements Extension {
         blockScaleOverrides = new LinkedHashMap<>();
         blockOffsetOverrides = new LinkedHashMap<>();
         blockOverrideOrder = new java.util.ArrayList<>();
+        boolean unifiedPresent = root.containsKey("block-overrides");
         Map<String, Object> unified = childMap(root.get("block-overrides"));
-        if (!unified.isEmpty() || root.containsKey("block-overrides")) {
+        OverrideMigration migration = unifiedPresent
+                ? migrateOverridePatterns(unified, unified.isEmpty())
+                : new OverrideMigration(unified, false);
+        unified = migration.overrides();
+        if (unifiedPresent) {
             for (Map.Entry<String, Object> entry : unified.entrySet()) {
                 validateOverridePattern(entry.getKey());
                 blockOverrideOrder.add(entry.getKey());
@@ -493,6 +506,89 @@ public final class StemcraftGeyserExtension implements Extension {
                     yamlNumber(axes.get("z"), prefix + ".z", 0f)));
             }
         }
+        return migration.changed();
+    }
+
+    /**
+     * Converts the known legacy chest and cobblestone-wall entries to wildcard entries.
+     * Differing chest profiles remain exact so no custom calibration is discarded.
+     */
+    private OverrideMigration migrateOverridePatterns(Map<String, Object> source, boolean useDefaults) {
+        LinkedHashMap<String, Object> overrides = new LinkedHashMap<>(source);
+        boolean changed = false;
+
+        String chest = "minecraft:chest";
+        String trappedChest = "minecraft:trapped_chest";
+        String enderChest = "minecraft:ender_chest";
+        String chestPattern = "minecraft:*chest";
+        Object chestValues = overrides.get(chest);
+        boolean identicalChests = chestValues != null
+                && java.util.Objects.equals(chestValues, overrides.get(trappedChest))
+                && java.util.Objects.equals(chestValues, overrides.get(enderChest));
+        if (!overrides.containsKey(chestPattern) && identicalChests) {
+            overrides = replaceOverrideKeys(overrides,
+                    java.util.Set.of(chest, trappedChest, enderChest), chestPattern, chestValues);
+            changed = true;
+        } else if (!overrides.containsKey(chestPattern) && useDefaults) {
+            overrides.put(chestPattern, defaultChestOverride());
+            changed = true;
+        }
+
+        String wall = "minecraft:cobblestone_wall";
+        String wallPattern = "minecraft:*_wall";
+        if (!overrides.containsKey(wallPattern) && overrides.containsKey(wall)) {
+            overrides = replaceOverrideKeys(overrides, java.util.Set.of(wall), wallPattern,
+                    overrides.get(wall));
+            changed = true;
+        } else if (!overrides.containsKey(wallPattern)) {
+            overrides.put(wallPattern, defaultWallOverride());
+            changed = true;
+        }
+        return new OverrideMigration(overrides, changed);
+    }
+
+    /** Replaces one or more keys while retaining the first replaced key's YAML position. */
+    private LinkedHashMap<String, Object> replaceOverrideKeys(Map<String, Object> source,
+                                                               java.util.Set<String> replaced,
+                                                               String replacement,
+                                                               Object values) {
+        LinkedHashMap<String, Object> result = new LinkedHashMap<>();
+        boolean inserted = false;
+        for (Map.Entry<String, Object> entry : source.entrySet()) {
+            if (replaced.contains(entry.getKey())) {
+                if (!inserted) {
+                    result.put(replacement, values);
+                    inserted = true;
+                }
+            } else {
+                result.put(entry.getKey(), entry.getValue());
+            }
+        }
+        if (!inserted) result.put(replacement, values);
+        return result;
+    }
+
+    /** Returns the configured default values for the chest wildcard. */
+    private Map<String, Object> defaultChestOverride() {
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("scale", 2.6f);
+        values.put("x", -0.4f);
+        values.put("y", 0.1f);
+        values.put("z", 0.9f);
+        return values;
+    }
+
+    /** Returns the configured default values for the wall wildcard. */
+    private Map<String, Object> defaultWallOverride() {
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("x", -0.5f);
+        values.put("y", -0.5f);
+        values.put("z", 0f);
+        return values;
+    }
+
+    /** Result of migrating legacy exact overrides to wildcard entries. */
+    private record OverrideMigration(Map<String, Object> overrides, boolean changed) {
     }
 
     private void importLegacyConfig(Path legacyPath) throws IOException {
