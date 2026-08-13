@@ -57,6 +57,11 @@ offset:
   y: 0.575
   z: 0.25
 
+scale-pivot-correction:
+  x: -0.25
+  y: -0.525
+  z: -0.775
+
 block-overrides:
   minecraft:chest:
     scale: 2.6
@@ -75,8 +80,10 @@ block-overrides:
     z: 0.9
 ```
 
-Missing per-block values default to scale `1.0` and offset `0.0`. Calibration
-values are rounded to three decimal places when adjusted or saved.
+Missing per-block values default to scale `1.0` and offset `0.0`. Scale-pivot
+correction is applied per axis using `(1 - display scale) × correction`, so a
+full-scale display is unchanged. Calibration values are rounded to three decimal
+places when adjusted or saved.
 
 ## Commands
 
