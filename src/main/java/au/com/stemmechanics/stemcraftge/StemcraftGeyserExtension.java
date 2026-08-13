@@ -266,7 +266,7 @@ public final class StemcraftGeyserExtension implements Extension {
             rotationZ = 0f;
             offsetX = 0.25f;
             offsetY = 0.575f;
-            offsetZ = 0.25f;
+            offsetZ = 0.75f;
             pivotX = -0.25f;
             pivotY = -0.525f;
             pivotZ = -0.775f;
@@ -461,7 +461,7 @@ public final class StemcraftGeyserExtension implements Extension {
         Map<String, Object> offset = childMap(root.get("offset"));
         offsetX = yamlNumber(offset.get("x"), "offset.x", 0.25f);
         offsetY = yamlNumber(offset.get("y"), "offset.y", 0.575f);
-        offsetZ = yamlNumber(offset.get("z"), "offset.z", 0.25f);
+        offsetZ = yamlNumber(offset.get("z"), "offset.z", 0.75f);
         Map<String, Object> pivot = childMap(root.get("scale-pivot-correction"));
         pivotX = yamlNumber(pivot.get("x"), "scale-pivot-correction.x", -0.25f);
         pivotY = yamlNumber(pivot.get("y"), "scale-pivot-correction.y", -0.525f);
@@ -602,7 +602,7 @@ public final class StemcraftGeyserExtension implements Extension {
         rotationZ = number(properties, "rotation-z", 0f);
         offsetX = number(properties, "offset-x", 0.25f);
         offsetY = number(properties, "offset-y", 0.575f);
-        offsetZ = number(properties, "offset-z", 0.25f);
+        offsetZ = number(properties, "offset-z", 0.75f);
         pivotX = -0.25f;
         pivotY = -0.525f;
         pivotZ = -0.775f;

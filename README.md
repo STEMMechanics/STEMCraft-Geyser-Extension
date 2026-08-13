@@ -55,7 +55,7 @@ rotation:
 offset:
   x: 0.25
   y: 0.575
-  z: 0.25
+  z: 0.75
 
 scale-pivot-correction:
   x: -0.25
