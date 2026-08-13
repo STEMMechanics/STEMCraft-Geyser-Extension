@@ -51,6 +51,9 @@ public final class StemcraftGeyserExtension implements Extension {
     private float offsetX;
     private float offsetY;
     private float offsetZ;
+    private float pivotX;
+    private float pivotY;
+    private float pivotZ;
     private Map<String, Float> blockScaleOverrides = new LinkedHashMap<>();
     private Map<String, Vector3f> blockOffsetOverrides = new LinkedHashMap<>();
     private long packRevision;
@@ -172,7 +175,8 @@ public final class StemcraftGeyserExtension implements Extension {
             readYamlConfig(configPath);
             CRC32 checksum = new CRC32();
             String calibration = heldItemScale + ":" + rotationX + ":" + rotationY + ":"
-                    + rotationZ + ":" + offsetX + ":" + offsetY + ":" + offsetZ;
+                    + rotationZ + ":" + offsetX + ":" + offsetY + ":" + offsetZ + ":"
+                    + pivotX + ":" + pivotY + ":" + pivotZ;
             checksum.update(calibration.getBytes(java.nio.charset.StandardCharsets.UTF_8));
             packRevision = checksum.getValue() % 2_000_000_000L;
             packUuid = UUID.nameUUIDFromBytes(("stemcraftge:pack:" + PACK_FORMAT_REVISION)
@@ -181,9 +185,10 @@ public final class StemcraftGeyserExtension implements Extension {
                     .getBytes(java.nio.charset.StandardCharsets.UTF_8));
             configLoaded = true;
             applyCalibration();
-            logger().info("Calibration from %s: scale=%s rotation=[%s,%s,%s] offset=[%s,%s,%s], pack revision=%s"
+            logger().info("Calibration from %s: scale=%s rotation=[%s,%s,%s] offset=[%s,%s,%s] "
+                            + "pivot=[%s,%s,%s], pack revision=%s"
                     .formatted(configPath.toAbsolutePath(), heldItemScale, rotationX, rotationY, rotationZ,
-                            offsetX, offsetY, offsetZ, packRevision));
+                            offsetX, offsetY, offsetZ, pivotX, pivotY, pivotZ, packRevision));
         } catch (IOException | IllegalArgumentException exception) {
             throw new IllegalStateException("Unable to load STEMCraftGE calibration config", exception);
         }
@@ -193,8 +198,8 @@ public final class StemcraftGeyserExtension implements Extension {
         loadConfig();
         if (args.length == 0 || args[0].equalsIgnoreCase("status")) {
             source.sendMessage(status());
-            source.sendMessage("Use: /stemcraftge calibrate add <scale|rx|ry|rz|x|y|z> <amount>");
-            source.sendMessage("Or:  /stemcraftge calibrate set <scale|rx|ry|rz|x|y|z> <value>");
+            source.sendMessage("Use: /stemcraftge calibrate add <scale|rx|ry|rz|x|y|z|px|py|pz> <amount>");
+            source.sendMessage("Or:  /stemcraftge calibrate set <scale|rx|ry|rz|x|y|z|px|py|pz> <value>");
             source.sendMessage("Then: /stemcraftge calibrate save (or reload/reset)");
             return;
         }
@@ -257,6 +262,9 @@ public final class StemcraftGeyserExtension implements Extension {
             offsetX = 0.25f;
             offsetY = 0.575f;
             offsetZ = 0.25f;
+            pivotX = -0.25f;
+            pivotY = -0.525f;
+            pivotZ = -0.775f;
             blockScaleOverrides = defaultBlockScaleOverrides();
             blockOffsetOverrides = defaultBlockOffsetOverrides();
             applyCalibration();
@@ -356,7 +364,11 @@ public final class StemcraftGeyserExtension implements Extension {
             case "x" -> offsetX = round3(add ? offsetX + value : value);
             case "y" -> offsetY = round3(add ? offsetY + value : value);
             case "z" -> offsetZ = round3(add ? offsetZ + value : value);
-            default -> throw new IllegalArgumentException("Unknown field. Use scale, rx, ry, rz, x, y, or z.");
+            case "px" -> pivotX = round3(add ? pivotX + value : value);
+            case "py" -> pivotY = round3(add ? pivotY + value : value);
+            case "pz" -> pivotZ = round3(add ? pivotZ + value : value);
+            default -> throw new IllegalArgumentException(
+                    "Unknown field. Use scale, rx, ry, rz, x, y, z, px, py, or pz.");
         }
     }
 
@@ -369,12 +381,14 @@ public final class StemcraftGeyserExtension implements Extension {
 
     private void applyCalibration() {
         CustomBlockDisplayEntity.applyCalibration(heldItemScale, rotationX, rotationY, rotationZ,
-                offsetX, offsetY, offsetZ, blockScaleOverrides, blockOffsetOverrides);
+                offsetX, offsetY, offsetZ, pivotX, pivotY, pivotZ,
+                blockScaleOverrides, blockOffsetOverrides);
     }
 
     private String status() {
-        return "scale=%s rotation=[%s,%s,%s] offset=[%s,%s,%s] block-overrides=%s".formatted(
+        return "scale=%s rotation=[%s,%s,%s] offset=[%s,%s,%s] pivot=[%s,%s,%s] block-overrides=%s".formatted(
                 heldItemScale, rotationX, rotationY, rotationZ, offsetX, offsetY, offsetZ,
+                pivotX, pivotY, pivotZ,
                 blockScaleOverrides.size());
     }
 
@@ -383,6 +397,7 @@ public final class StemcraftGeyserExtension implements Extension {
         root.put("held-item-scale", round3(heldItemScale));
         root.put("rotation", axisMap(rotationX, rotationY, rotationZ));
         root.put("offset", axisMap(offsetX, offsetY, offsetZ));
+        root.put("scale-pivot-correction", axisMap(pivotX, pivotY, pivotZ));
         Map<String, Object> overrides = new LinkedHashMap<>();
         java.util.LinkedHashSet<String> identifiers = new java.util.LinkedHashSet<>(blockScaleOverrides.keySet());
         identifiers.addAll(blockOffsetOverrides.keySet());
@@ -433,6 +448,10 @@ public final class StemcraftGeyserExtension implements Extension {
         offsetX = yamlNumber(offset.get("x"), "offset.x", 0.25f);
         offsetY = yamlNumber(offset.get("y"), "offset.y", 0.575f);
         offsetZ = yamlNumber(offset.get("z"), "offset.z", 0.25f);
+        Map<String, Object> pivot = childMap(root.get("scale-pivot-correction"));
+        pivotX = yamlNumber(pivot.get("x"), "scale-pivot-correction.x", -0.25f);
+        pivotY = yamlNumber(pivot.get("y"), "scale-pivot-correction.y", -0.525f);
+        pivotZ = yamlNumber(pivot.get("z"), "scale-pivot-correction.z", -0.775f);
         blockScaleOverrides = new LinkedHashMap<>();
         blockOffsetOverrides = new LinkedHashMap<>();
         Map<String, Object> unified = childMap(root.get("block-overrides"));
@@ -477,6 +496,9 @@ public final class StemcraftGeyserExtension implements Extension {
         offsetX = number(properties, "offset-x", 0.25f);
         offsetY = number(properties, "offset-y", 0.575f);
         offsetZ = number(properties, "offset-z", 0.25f);
+        pivotX = -0.25f;
+        pivotY = -0.525f;
+        pivotZ = -0.775f;
         blockScaleOverrides = readBlockScaleOverrides(properties);
         blockOffsetOverrides = defaultBlockOffsetOverrides();
         saveConfig();

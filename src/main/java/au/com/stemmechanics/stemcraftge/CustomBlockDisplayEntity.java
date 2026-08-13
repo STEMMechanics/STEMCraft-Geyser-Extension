@@ -40,6 +40,7 @@ public final class CustomBlockDisplayEntity extends LivingEntity {
     private static float baseScale = 2.6f;
     private static Vector3f calibrationRotation = Vector3f.from(
             DEFAULT_ROTATION_X, DEFAULT_ROTATION_Y, DEFAULT_ROTATION_Z);
+    private static Vector3f scalePivotCorrection = Vector3f.ZERO;
     private static Map<String, Float> blockScaleOverrides = Map.of();
     private static Map<String, Vector3f> blockOffsetOverrides = Map.of();
     static GeyserFloatEntityProperty LEFT_X;
@@ -76,11 +77,13 @@ public final class CustomBlockDisplayEntity extends LivingEntity {
 
     public static void applyCalibration(float scale, float rotationX, float rotationY, float rotationZ,
                                         float offsetX, float offsetY, float offsetZ,
+                                        float pivotX, float pivotY, float pivotZ,
                                         Map<String, Float> scaleOverrides,
                                         Map<String, Vector3f> offsetOverrides) {
         baseScale = scale;
         calibrationRotation = Vector3f.from(rotationX, rotationY, rotationZ);
         bedrockOffset = Vector3f.from(offsetX, offsetY, offsetZ);
+        scalePivotCorrection = Vector3f.from(pivotX, pivotY, pivotZ);
         blockScaleOverrides = Map.copyOf(scaleOverrides);
         blockOffsetOverrides = Map.copyOf(offsetOverrides);
         synchronized (LIVE) {
@@ -205,6 +208,10 @@ public final class CustomBlockDisplayEntity extends LivingEntity {
     @Override
     public Vector3f bedrockPosition() {
         return super.bedrockPosition().add(translation).add(bedrockOffset)
+                .add(Vector3f.from(
+                        (1f - displayScale.getX()) * scalePivotCorrection.getX(),
+                        (1f - displayScale.getY()) * scalePivotCorrection.getY(),
+                        (1f - displayScale.getZ()) * scalePivotCorrection.getZ()))
                 .add(blockOffsetOverrides.getOrDefault(blockIdentifier, Vector3f.ZERO));
     }
 
@@ -230,6 +237,9 @@ public final class CustomBlockDisplayEntity extends LivingEntity {
     public void setDisplayScale(EntityMetadata<Vector3f, ?> metadata) {
         displayScale = metadata.getValue() == null ? Vector3f.ONE : metadata.getValue();
         syncTransform(true);
+        if (isValid()) {
+            moveAbsoluteRaw(position, yaw, pitch, headYaw, onGround, true);
+        }
     }
 
     public void setLeftRotation(EntityMetadata<Quaternionf, ?> metadata) {

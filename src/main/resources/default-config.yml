@@ -10,6 +10,13 @@ offset:
   y: 0.575
   z: 0.25
 
+# Bedrock held-item pivot compensation, multiplied by (1 - display scale)
+# independently on each axis. Full-scale displays receive no correction.
+scale-pivot-correction:
+  x: -0.25
+  y: -0.525
+  z: -0.775
+
 # Multipliers applied on top of held-item-scale.
 block-overrides:
   minecraft:chest:

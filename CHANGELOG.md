@@ -4,6 +4,13 @@ All notable changes to this project are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Added
+
+- Configurable Bedrock scale-pivot correction for non-unit block-display scales.
+- Live `px`, `py`, and `pz` calibration with save, reload, reset, and startup support.
+
 ## [1.0.0] - 2026-08-13
 
 ### Added
