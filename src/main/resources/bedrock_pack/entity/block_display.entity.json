@@ -1,0 +1,15 @@
+{
+  "format_version": "1.26.30",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "stemcraftge:block_display",
+      "materials": { "default": "entity_alphatest" },
+      "textures": { "default": "textures/entity/steve" },
+      "geometry": { "default": "geometry.stemcraftge.block_display" },
+      "held_item_scale": "q.property('stemcraftge:base_scale') + (0.000001 * q.property('stemcraftge:sync_revision'))",
+      "animations": { "transform": "animation.stemcraftge.block_display.transform" },
+      "scripts": { "animate": ["transform"] },
+      "render_controllers": ["controller.render.stemcraftge.block_display"]
+    }
+  }
+}

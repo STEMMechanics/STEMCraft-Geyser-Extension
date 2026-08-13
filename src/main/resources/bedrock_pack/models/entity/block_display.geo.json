@@ -1,0 +1,22 @@
+{
+  "format_version": "1.12.0",
+  "minecraft:geometry": [
+    {
+      "description": {
+        "identifier": "geometry.stemcraftge.block_display",
+        "texture_width": 1,
+        "texture_height": 1,
+        "visible_bounds_width": 128,
+        "visible_bounds_height": 128,
+        "visible_bounds_offset": [0, 0, 0]
+      },
+      "bones": [
+        { "name": "calibration", "pivot": [0, 0, 0] },
+        { "name": "root", "parent": "calibration", "pivot": [0, 0, 0] },
+        { "name": "display_scale", "parent": "root", "pivot": [0, 0, 0] },
+        { "name": "right_rotation", "parent": "display_scale", "pivot": [0, 0, 0] },
+        { "name": "rightItem", "parent": "right_rotation", "pivot": [0, 0, 0] }
+      ]
+    }
+  ]
+}

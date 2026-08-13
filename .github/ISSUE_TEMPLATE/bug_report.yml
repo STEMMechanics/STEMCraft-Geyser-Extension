@@ -1,0 +1,85 @@
+name: Bug report
+description: Report a reproducible problem with the STEMCraft Geyser Extension.
+title: "[Bug]: "
+labels: [bug, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Include exact versions, commands, configuration and visual evidence where possible. Rendering bugs usually require both Java and Bedrock screenshots.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Explain what you expected and what happened instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Summon ...
+        2. Join from Bedrock ...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: input
+    id: extension-version
+    attributes:
+      label: Extension version
+      placeholder: 1.0.0
+    validations:
+      required: true
+
+  - type: input
+    id: geyser-version
+    attributes:
+      label: Geyser version
+      placeholder: 2.11.1-b1218 (git-master-5ef5efb)
+    validations:
+      required: true
+
+  - type: input
+    id: server-version
+    attributes:
+      label: Server software and Minecraft Java version
+      placeholder: Paper build ... / Minecraft ...
+    validations:
+      required: true
+
+  - type: input
+    id: bedrock-version
+    attributes:
+      label: Bedrock version and platform
+      placeholder: 26.x on Windows / Android / console
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Relevant configuration
+      description: Remove secrets and include the smallest useful config snippet.
+      render: yaml
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Include the complete exception and nearby Geyser messages.
+      render: text
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots or video
+      description: Show Java and Bedrock views from comparable positions where possible.
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context

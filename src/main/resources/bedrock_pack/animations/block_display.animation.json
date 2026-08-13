@@ -1,0 +1,38 @@
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "animation.stemcraftge.block_display.transform": {
+      "loop": true,
+      "bones": {
+        "calibration": {
+          "rotation": [
+            "-20.0 + q.property('stemcraftge:cal_x') + (0.000001 * q.property('stemcraftge:sync_revision'))",
+            "-135.0 + q.property('stemcraftge:cal_y') + (0.000001 * q.property('stemcraftge:sync_revision'))",
+            "q.property('stemcraftge:cal_z') + (0.000001 * q.property('stemcraftge:sync_revision'))"
+          ]
+        },
+        "root": {
+          "rotation": [
+            "q.property('stemcraftge:left_x')",
+            "q.property('stemcraftge:left_y')",
+            "q.property('stemcraftge:left_z')"
+          ]
+        },
+        "display_scale": {
+          "scale": [
+            "q.property('stemcraftge:scale_x') * q.property('stemcraftge:block_scale') + (0.000001 * q.property('stemcraftge:sync_revision'))",
+            "q.property('stemcraftge:scale_y') * q.property('stemcraftge:block_scale') + (0.000001 * q.property('stemcraftge:sync_revision'))",
+            "q.property('stemcraftge:scale_z') * q.property('stemcraftge:block_scale') + (0.000001 * q.property('stemcraftge:sync_revision'))"
+          ]
+        },
+        "right_rotation": {
+          "rotation": [
+            "q.property('stemcraftge:right_x') + (0.000001 * q.property('stemcraftge:sync_revision'))",
+            "q.property('stemcraftge:right_y') + (0.000001 * q.property('stemcraftge:sync_revision'))",
+            "q.property('stemcraftge:right_z') + (0.000001 * q.property('stemcraftge:sync_revision'))"
+          ]
+        }
+      }
+    }
+  }
+}

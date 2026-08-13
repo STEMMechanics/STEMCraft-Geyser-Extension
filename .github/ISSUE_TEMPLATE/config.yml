@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/STEMMechanics/STEMCraft-Geyser-Extension#readme
+    about: Installation, configuration, commands and troubleshooting guidance.
+  - name: Question or setup help
+    url: https://github.com/STEMMechanics/STEMCraft-Geyser-Extension/discussions
+    about: Ask here if you are not sure whether the problem is a bug.
+  - name: Report a security vulnerability
+    url: https://github.com/STEMMechanics/STEMCraft-Geyser-Extension/security/advisories/new
+    about: Report vulnerabilities privately rather than in a public issue.

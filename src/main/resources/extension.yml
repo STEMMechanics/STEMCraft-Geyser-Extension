@@ -1,0 +1,6 @@
+id: stemcraftge
+name: STEMCraftGeyserExtension
+main: au.com.stemmechanics.stemcraftge.StemcraftGeyserExtension
+api: 2.11.0
+version: $version
+authors: [STEMMechanics]

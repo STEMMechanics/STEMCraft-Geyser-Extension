@@ -1,0 +1,29 @@
+held-item-scale: 2.7
+
+rotation:
+  x: -20.0
+  y: -135.0
+  z: 0.0
+
+offset:
+  x: 0.25
+  y: 0.575
+  z: 0.25
+
+# Multipliers applied on top of held-item-scale.
+block-overrides:
+  minecraft:chest:
+    scale: 2.6
+    x: -0.4
+    y: 0.1
+    z: 0.9
+  minecraft:trapped_chest:
+    scale: 2.6
+    x: -0.4
+    y: 0.1
+    z: 0.9
+  minecraft:ender_chest:
+    scale: 2.6
+    x: -0.4
+    y: 0.1
+    z: 0.9
