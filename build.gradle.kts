@@ -10,7 +10,7 @@ repositories {
 
 dependencies {
     compileOnly("org.geysermc.geyser:core:${property("geyser_version")}")
-    implementation("org.yaml:snakeyaml:2.6")
+    implementation("org.yaml:snakeyaml:2.7")
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.11.4")
 }
